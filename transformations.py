@@ -60,6 +60,17 @@ dictionary = get_dictionary()
 def find_synonyms(w):
     if w.word in dictionary.keys():
         return dictionary[w.word].synonyms
+    elif len(w.word.split()) > 1:
+        list_to_return = []
+        starting_phrase = w.word.split()
+        for idx, sub_part in enumerate(starting_phrase):
+            if not sub_part in dictionary.keys():
+                continue
+            for syn in dictionary[sub_part].synonyms:
+                copy_starting_phrase = starting_phrase.copy()
+                copy_starting_phrase[idx] = syn
+                list_to_return.append(" ".join(copy_starting_phrase))
+        return list_to_return
     else:
         return []
 

@@ -1,4 +1,4 @@
-name: dictionary
+name: vanity
 channels:
   - defaults
 dependencies:
