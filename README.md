@@ -26,13 +26,11 @@ This will install all necessary dependencies.
 
 To use the tool, run:
 ```sh
-python src/license_explorer.py
+python src/vanity.py bread --distance 1
 ```
 
 Here's some example output:
 ```
-Enter word to start:BREAD
-Enter max distance to output: 1
 DISTANCE 0
          Option(word='BREAD', distance=0)
 DISTANCE 1
