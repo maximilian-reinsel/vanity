@@ -5,6 +5,7 @@
 - [Introduction](#introduction)
 - [Setup](#setup)
 - [Usage](#usage)
+- [Contribute](#contribute)
 
 ## Introduction
 
@@ -42,4 +43,12 @@ DISTANCE 1
          Option(word='BRE4D', distance=1)
          Option(word='BRED', distance=1)
          Option(word='LOAF', distance=1)
+```
+
+## Contribute
+
+If you add any dependencies, make sure to export the changes:
+
+```sh
+conda env export -n vanity --from-history | grep -v "prefix" > conda.yaml
 ```
