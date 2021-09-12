@@ -26,7 +26,7 @@ This will install all necessary dependencies.
 
 To use the tool, run:
 ```sh
-python license_explorer.py
+python src/license_explorer.py
 ```
 
 Here's some example output:
