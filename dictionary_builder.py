@@ -1,4 +1,5 @@
 import json
+import os
 
 from dataclasses import dataclass
 from enum import Enum
@@ -14,10 +15,15 @@ class Entry:
 def get_dictionary():
     entries = {}
 
-    with open(dictionary_path) as f:
+    path = get_dictionary_path()
+    with open(path) as f:
         full_syn_list = json.load(f)
 
     for word in full_syn_list.keys():
         entries[word.upper()] = Entry(word=word.strip().upper(), synonyms=[s.strip().upper() for s in full_syn_list[word]])
 
     return entries
+
+def get_dictionary_path():
+    script_dir = os.path.dirname(__file__) 
+    return os.path.join(script_dir, dictionary_path)
