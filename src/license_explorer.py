@@ -25,10 +25,15 @@ def explore(input_word, max_distance, output_width, max_length):
     word_set = set()
     word_set.add(Option(word=word, distance=0))
 
-    while distance_traveled <= max_distance:
+    all_options_processed = False
+    while distance_traveled <= max_distance and not all_options_processed:
         print_options_at_distance(distance_traveled, word_set, output_width, max_length)
         new_words = []
+        all_options_processed = True
         for existing_option in word_set:
+            if existing_option.distance < distance_traveled:
+                continue
+            all_options_processed = False
             for f in transformation_functions.keys():
                 distance_out = transformation_functions[f] + distance_traveled
                 if distance_out > max_distance:
