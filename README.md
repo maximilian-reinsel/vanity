@@ -26,21 +26,31 @@ This will install all necessary dependencies.
 
 To use the tool, run:
 ```sh
-python src/vanity.py bread --distance 1
+python src/vanity.py bread
 ```
 
 Here's some example output:
 ```
 DISTANCE 0
-         Option(word='BREAD', distance=0)
+         BREAD     
 DISTANCE 1
-         Option(word='8READ', distance=1)
-         Option(word='BAKERY', distance=1)
-         Option(word='BR3AD', distance=1)
-         Option(word='BRAD', distance=1)
-         Option(word='BRE4D', distance=1)
-         Option(word='BRED', distance=1)
-         Option(word='LOAF', distance=1)
+         8READ     BAKERY    BR3AD     BRAD      BRE4D     BRED      LOAF
+DISTANCE 2
+         1OAF      8AKERY    8R3AD     8RAD      8RE4D     8RED      B4KERY    BAK3RY    BAKE      BAKED
+         BAKING    BAKRY     BARD      BKERY     BR34D     BR3D      BR4D      BRD       BUN       L0AF
+         LAF       LO4F      LOF       RAD       REARED    ROAST
+DISTANCE 3
+         10AF      1AF       1O4F      1OF       84KERY    8AK3RY    8AKE      8AKED     8AKING    8AKRY
+         8ARD      8KERY     8R34D     8R3D      8R4D      8RD       8UN       B4K3RY    B4KE      B4KED
+         B4KING    B4KRY     B4RD      BAK1NG    BAK3      BAK3D     BAKD      BAKIN9    BAKNG     BK3RY
+         BKE       BKED      BKING     BKRY      BN        COOK      COOKING   FDR       KEPT      L04F
+         L0F       L4F       LF        POET      R0AST     R3ARED    R4D       RARED     RAST      RD
+         RE4RED    REARD     RERED     RO4ST     ROA5T     ROAS7     ROASTING  ROOSEVELT ROST      STEAK
+```
+
+To see options, run:
+```sh
+python src/vanity.py -h
 ```
 
 ## Contribute

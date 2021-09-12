@@ -19,14 +19,14 @@ transformation_functions = {
     remove_start_or_end: 10,
 }
 
-def explore(input_word, max_distance):
+def explore(input_word, max_distance, output_width, max_length):
     word = input_word.strip().upper()
     distance_traveled = 0
     word_set = set()
     word_set.add(Option(word=word, distance=0))
 
     while distance_traveled <= max_distance:
-        print_options_at_distance(distance_traveled, word_set)
+        print_options_at_distance(distance_traveled, word_set, output_width, max_length)
         new_words = []
         for existing_option in word_set:
             for f in transformation_functions.keys():
