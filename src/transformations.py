@@ -1,7 +1,7 @@
 from dictionary_builder import get_dictionary
 
 vowels = ["A", "E", "I", "O", "U"]
-consinents = [
+consonants = [
     "B", "C", "D", "F", "G",
     "H", "J", "K", "L", "M",
     "N", "P", "Q", "R", "S",
