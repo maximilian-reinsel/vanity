@@ -53,6 +53,20 @@ To see options, run:
 python src/vanity.py -h
 ```
 
+You can also use the experimental `--dmv-test` flag to check the California DMV
+to see if the vanity plate is available. This capability will be incorporated
+into the main search tool, and eventually include other states.
+
+```sh
+$ python src/vanity.py bread --dmv-test 
+Is "bread" available as a CA DMV license plate?...
+False
+
+$ python src/vanity.py 8AK3RY --dmv-test
+Is "8AK3RY" available as a CA DMV license plate?...
+True
+```
+
 ## Contribute
 
 If you add any dependencies, make sure to export the changes:
