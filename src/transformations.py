@@ -35,16 +35,19 @@ substring_transforms = {
 
 def transform_letters_to_numbers(w):
     to_ret = []
-    for l in number_transforms.keys():
-        if l in w.word:
-            to_ret.append(w.word.replace(l, number_transforms[l], 1))
+    for i, c in enumerate(w.word):
+        if c in number_transforms.keys():
+            to_ret.append(w.word[:i] + number_transforms[c] + w.word[i+1:])
     return to_ret
 
 def transform_substrings_to_numbers(w):
     to_ret = []
-    for l in substring_transforms.keys():
-        if l in w.word:
-            to_ret.append(w.word.replace(l, substring_transforms[l], 1))
+    # This could be improved by using KMP or something, but time to build maps probably outweighs
+    # n^2 here for now.
+    for i in range(len(w.word)):
+        for sub in substring_transforms.keys():
+            if w.word[i:i+len(sub)] == sub:
+                to_ret.append(w.word[:i] + substring_transforms[sub] + w.word[i+len(sub):])
     return to_ret
 
 def remove_middle_vowels(w):
