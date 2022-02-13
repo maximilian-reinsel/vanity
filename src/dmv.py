@@ -1,4 +1,8 @@
+import json
+import os.path
 import requests
+
+from pathlib import Path
 
 class CA_DMV():
     API_ROOT = "https://www.dmv.ca.gov/wasapp/ipp2"
@@ -39,6 +43,8 @@ class CA_DMV():
     SUCCESS_PHRASE = "id=\"PersonalizedFormBean\""
     FAILURE_PHRASE = "id=\"plate-configurator\""
 
+    CACHE_PATH = "~/.cache/vanity/ca_dmv.json"
+
     def __init__(self):
         self.session = None
         self.cache = None
@@ -48,10 +54,10 @@ class CA_DMV():
         self.check_session_initialized(force = True)
 
     def check_plate(self, word):
-        self.check_cache_initialized(force = False)
+        self.check_cache_initialized()
         if word in self.cache:
             return self.cache[word]
-        self.check_session_initialized(force = False)
+        self.check_session_initialized()
         data = CA_DMV.build_plate_request_data(word)
         if not data:
             print("Invalid input, can't check the DMV.")
@@ -65,6 +71,7 @@ class CA_DMV():
             print("Got an unknown result for a plate, neither success nor failure!")
             return False
         self.cache[word] = available
+        self.commit_cache()
         return available
 
     def check_session_initialized(self, force = False):
@@ -73,7 +80,21 @@ class CA_DMV():
 
     def check_cache_initialized(self, force = False):
         if self.cache is None or force:
-            self.cache = {}
+            try:
+                with open(CA_DMV.get_cache_path()) as cache_file:
+                    self.cache = json.load(cache_file)
+            except (FileNotFoundError, PermissionError, json.JSONDecodeError):
+                self.cache = {}
+
+    def commit_cache(self):
+        self.check_cache_initialized()
+        cache_dir = Path(CA_DMV.get_cache_path()).parent
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        with open(CA_DMV.get_cache_path(), "w") as cache_file:
+            json.dump(self.cache, cache_file)
+
+    def get_cache_path():
+        return os.path.expanduser(CA_DMV.CACHE_PATH)
 
     def dmv_url(page):
         return "{}/{}".format(CA_DMV.API_ROOT, page)
