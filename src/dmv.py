@@ -8,7 +8,7 @@ class CA_DMV():
     PATH_PLATE = "processConfigPlate.do"
 
     START_DATA = {
-        "acknowledged": "true", 
+        "acknowledged": "true",
         "_acknowledged": "on",
     }
     PROCESS_DATA = {
@@ -45,17 +45,17 @@ class CA_DMV():
     def initialize(self):
         self.check_initialized(force = True)
 
-    def checkPlate(self, word):
+    def check_plate(self, word):
         self.check_initialized(force = False)
-        data = CA_DMV.buildPlateRequestData(word)
+        data = CA_DMV.build_plate_request_data(word)
         if not data:
             print("Invalid input, can't check the DMV.")
             return False
         result = self.session.post(
-            url = CA_DMV.dmvUrl(CA_DMV.PATH_PLATE), 
+            url = CA_DMV.dmv_url(CA_DMV.PATH_PLATE),
             data = data,
         )
-        available = CA_DMV.checkPlateResult(result)
+        available = CA_DMV.check_plate_response(result)
         if available is None:
             print("Got an unknown result for a plate, neither success nor failure!")
             return False
@@ -63,25 +63,25 @@ class CA_DMV():
 
     def check_initialized(self, force = False):
         if not self.session or force:
-            self.session = CA_DMV.initDmvSession()
+            self.session = CA_DMV.init_dmv_session()
 
-    def dmvUrl(page):
+    def dmv_url(page):
         return "{}/{}".format(CA_DMV.API_ROOT, page)
 
-    def initDmvSession():
+    def init_dmv_session():
         session = requests.Session()
-        session.get(url = CA_DMV.dmvUrl(CA_DMV.PATH_INIT))
+        session.get(url = CA_DMV.dmv_url(CA_DMV.PATH_INIT))
         session.post(
-            url = CA_DMV.dmvUrl(CA_DMV.PATH_START), 
+            url = CA_DMV.dmv_url(CA_DMV.PATH_START),
             data = CA_DMV.PROCESS_DATA,
         )
         session.post(
-            url = CA_DMV.dmvUrl(CA_DMV.PATH_PROCESS), 
+            url = CA_DMV.dmv_url(CA_DMV.PATH_PROCESS),
             data = CA_DMV.START_DATA,
         )
         return session
 
-    def buildPlateRequestData(word):
+    def build_plate_request_data(word):
         if len(word) < CA_DMV.MIN_LENGTH or len(word) > CA_DMV.MAX_LENGTH:
             return None
         data = CA_DMV.PLATE_DATA.copy()
@@ -90,7 +90,7 @@ class CA_DMV():
             data[param] = char
         return data
 
-    def checkPlateResult(response):
+    def check_plate_response(response):
         if CA_DMV.SUCCESS_PHRASE in response.text:
             return True
         elif CA_DMV.FAILURE_PHRASE in response.text:
