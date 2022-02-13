@@ -41,15 +41,17 @@ class CA_DMV():
 
     def __init__(self):
         self.session = None
-        self.cache = {}
+        self.cache = None
 
     def initialize(self):
-        self.check_initialized(force = True)
+        self.check_cache_initialized(force = True)
+        self.check_session_initialized(force = True)
 
     def check_plate(self, word):
+        self.check_cache_initialized(force = False)
         if word in self.cache:
             return self.cache[word]
-        self.check_initialized(force = False)
+        self.check_session_initialized(force = False)
         data = CA_DMV.build_plate_request_data(word)
         if not data:
             print("Invalid input, can't check the DMV.")
@@ -65,9 +67,13 @@ class CA_DMV():
         self.cache[word] = available
         return available
 
-    def check_initialized(self, force = False):
-        if not self.session or force:
+    def check_session_initialized(self, force = False):
+        if self.session is None or force:
             self.session = CA_DMV.init_dmv_session()
+
+    def check_cache_initialized(self, force = False):
+        if self.cache is None or force:
+            self.cache = {}
 
     def dmv_url(page):
         return "{}/{}".format(CA_DMV.API_ROOT, page)
