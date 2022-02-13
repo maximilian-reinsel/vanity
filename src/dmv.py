@@ -41,11 +41,14 @@ class CA_DMV():
 
     def __init__(self):
         self.session = None
+        self.cache = {}
 
     def initialize(self):
         self.check_initialized(force = True)
 
     def check_plate(self, word):
+        if word in self.cache:
+            return self.cache[word]
         self.check_initialized(force = False)
         data = CA_DMV.build_plate_request_data(word)
         if not data:
@@ -59,6 +62,7 @@ class CA_DMV():
         if available is None:
             print("Got an unknown result for a plate, neither success nor failure!")
             return False
+        self.cache[word] = available
         return available
 
     def check_initialized(self, force = False):
