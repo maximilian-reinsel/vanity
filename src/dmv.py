@@ -70,6 +70,8 @@ class CA_DMV():
         self.session = None
         self.cache = None
         self.cache_option = cache_option
+        if self.cache_option == CacheOption.SKIP_MEM_CACHE:
+            logger.debug("Not initializing cache due to option %s", self.cache_option)
         if self.cache_option == CacheOption.CLEAR_DISK_CACHE:
             self.clear_cache()
 
@@ -78,13 +80,15 @@ class CA_DMV():
         self.check_session_initialized(force = True)
 
     def check_plate(self, word):
+        logger.debug("Checking word: '%s'", word)
         cached = self.cache_read(word)
         if cached is not None:
+            logger.debug("Found result in cache: ('%s': %s)", word, cached)
             return cached
         self.check_session_initialized()
         data = CA_DMV.build_plate_request_data(word)
         if not data:
-            print("Invalid input, can't check the DMV.")
+            logger.error("Invalid input, can't check the DMV.")
             return False
         result = self.session.post(
             url = CA_DMV.dmv_url(CA_DMV.PATH_PLATE),
@@ -92,14 +96,16 @@ class CA_DMV():
         )
         available = CA_DMV.check_plate_response(result)
         if available is None:
-            print("Got an unknown result for a plate, neither success nor failure!")
+            logger.error("Got an unknown result for a plate, neither success nor failure!")
             return False
+        logger.debug("Got result from API: ('%s': %s)", word, available)
         self.cache_write(word, available)
         self.commit_cache()
         return available
 
     def check_session_initialized(self, force = False):
         if self.session is None or force:
+            logger.debug("Initializing DMV request session")
             self.session = CA_DMV.init_dmv_session()
 
     def check_cache_initialized(self, force = False):
@@ -107,12 +113,16 @@ class CA_DMV():
             return False
         if self.cache is None or force:
             if self.cache_option == CacheOption.SKIP_DISK_CACHE:
+                logger.debug("Not loading cache due to option %s", self.cache_option)
                 self.cache = {}
             else:
+                logger.debug("Loading cache from %s", CA_DMV.get_cache_path())
                 try:
                     with open(CA_DMV.get_cache_path()) as cache_file:
                         self.cache = json.load(cache_file)
+                        logger.debug("Successfully loaded %d entries from the cache", len(self.cache))
                 except (FileNotFoundError, PermissionError, json.JSONDecodeError) as ex:
+                    logger.debug("Failed to read cache from disk due to: %s", ex)
                     self.cache = {}
         return True
 
@@ -128,16 +138,19 @@ class CA_DMV():
 
     def commit_cache(self):
         if self.check_cache_initialized() and self.cache_option != CacheOption.SKIP_DISK_CACHE:
+            logger.debug("Saving %d cache entries to %s", len(self.cache), CA_DMV.get_cache_path())
             cache_dir = Path(CA_DMV.get_cache_path()).parent
             cache_dir.mkdir(parents=True, exist_ok=True)
             with open(CA_DMV.get_cache_path(), "w") as cache_file:
                 json.dump(self.cache, cache_file)
 
     def clear_cache(self):
+        logger.debug("Clearing cache from %s", CA_DMV.get_cache_path())
         try:
             os.remove(CA_DMV.get_cache_path())
+            logger.debug("Successfully cleared cache")
         except FileNotFoundError:
-            pass
+            logger.debug("Could not clear disk cache - does not exist")
 
     def get_cache_path():
         return os.path.expanduser(CA_DMV.CACHE_PATH)
