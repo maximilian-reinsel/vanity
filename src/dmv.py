@@ -1,10 +1,13 @@
 import json
+import logging
 import os
 import os.path
 import requests
 
 from enum import Enum
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 class CacheOption(Enum):
     DEFAULT = 1
