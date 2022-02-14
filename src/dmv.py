@@ -1,8 +1,26 @@
 import json
+import os
 import os.path
 import requests
 
+from enum import Enum
 from pathlib import Path
+
+class CacheOption(Enum):
+    DEFAULT = 1
+    SKIP_MEM_CACHE = 2
+    SKIP_DISK_CACHE = 3
+    CLEAR_DISK_CACHE = 4
+
+    def __str__(self):
+        return self.name
+
+    @staticmethod
+    def from_string(s):
+        try:
+            return CacheOption[s]
+        except KeyError:
+            raise ValueError()
 
 class CA_DMV():
     API_ROOT = "https://www.dmv.ca.gov/wasapp/ipp2"
@@ -45,18 +63,21 @@ class CA_DMV():
 
     CACHE_PATH = "~/.cache/vanity/ca_dmv.json"
 
-    def __init__(self):
+    def __init__(self, cache_option = CacheOption.DEFAULT):
         self.session = None
         self.cache = None
+        self.cache_option = cache_option
+        if self.cache_option == CacheOption.CLEAR_DISK_CACHE:
+            self.clear_cache()
 
     def initialize(self):
         self.check_cache_initialized(force = True)
         self.check_session_initialized(force = True)
 
     def check_plate(self, word):
-        self.check_cache_initialized()
-        if word in self.cache:
-            return self.cache[word]
+        cached = self.cache_read(word)
+        if cached is not None:
+            return cached
         self.check_session_initialized()
         data = CA_DMV.build_plate_request_data(word)
         if not data:
@@ -70,7 +91,7 @@ class CA_DMV():
         if available is None:
             print("Got an unknown result for a plate, neither success nor failure!")
             return False
-        self.cache[word] = available
+        self.cache_write(word, available)
         self.commit_cache()
         return available
 
@@ -79,19 +100,41 @@ class CA_DMV():
             self.session = CA_DMV.init_dmv_session()
 
     def check_cache_initialized(self, force = False):
+        if self.cache_option == CacheOption.SKIP_MEM_CACHE:
+            return False
         if self.cache is None or force:
-            try:
-                with open(CA_DMV.get_cache_path()) as cache_file:
-                    self.cache = json.load(cache_file)
-            except (FileNotFoundError, PermissionError, json.JSONDecodeError):
+            if self.cache_option == CacheOption.SKIP_DISK_CACHE:
                 self.cache = {}
+            else:
+                try:
+                    with open(CA_DMV.get_cache_path()) as cache_file:
+                        self.cache = json.load(cache_file)
+                except (FileNotFoundError, PermissionError, json.JSONDecodeError) as ex:
+                    self.cache = {}
+        return True
+
+    def cache_read(self, word):
+        if self.check_cache_initialized():
+            return self.cache.get(word)
+        else:
+            return None
+
+    def cache_write(self, word, value):
+        if self.check_cache_initialized():
+            self.cache[word] = value
 
     def commit_cache(self):
-        self.check_cache_initialized()
-        cache_dir = Path(CA_DMV.get_cache_path()).parent
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        with open(CA_DMV.get_cache_path(), "w") as cache_file:
-            json.dump(self.cache, cache_file)
+        if self.check_cache_initialized() and self.cache_option != CacheOption.SKIP_DISK_CACHE:
+            cache_dir = Path(CA_DMV.get_cache_path()).parent
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            with open(CA_DMV.get_cache_path(), "w") as cache_file:
+                json.dump(self.cache, cache_file)
+
+    def clear_cache(self):
+        try:
+            os.remove(CA_DMV.get_cache_path())
+        except FileNotFoundError:
+            pass
 
     def get_cache_path():
         return os.path.expanduser(CA_DMV.CACHE_PATH)
