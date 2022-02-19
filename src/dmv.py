@@ -2,7 +2,9 @@ import json
 import logging
 import os
 import os.path
+import platform
 import requests
+import sys
 
 from enum import Enum
 from pathlib import Path
@@ -64,7 +66,8 @@ class CA_DMV():
     SUCCESS_PHRASE = "id=\"PersonalizedFormBean\""
     FAILURE_PHRASE = "id=\"plate-configurator\""
 
-    CACHE_PATH = "~/.cache/vanity/ca_dmv.json"
+    APPNAME = "vanity"
+    CACHE_FILE = "ca_dmv.json"
 
     def __init__(self, cache_option = CacheOption.DEFAULT):
         self.session = None
@@ -153,7 +156,8 @@ class CA_DMV():
             logger.debug("Could not clear disk cache - does not exist")
 
     def get_cache_path():
-        return os.path.expanduser(CA_DMV.CACHE_PATH)
+        cache_dir = CA_DMV.user_cache_dir(CA_DMV.APPNAME)
+        return os.path.join(cache_dir, CA_DMV.CACHE_FILE)
 
     def dmv_url(page):
         return "{}/{}".format(CA_DMV.API_ROOT, page)
@@ -187,3 +191,50 @@ class CA_DMV():
             return False
         else:
             return None
+
+    # adapted from https://github.com/ActiveState/appdirs
+    def user_cache_dir(appname):
+        r"""Return full path to the user-specific cache dir for this application.
+
+        "appname" is the name of application.
+
+        Typical user cache directories are:
+            Mac OS X:   ~/Library/Caches/<AppName>
+            Unix:       ~/.cache/<AppName> (XDG default)
+            Win XP:     C:\Documents and Settings\<username>\Local Settings\Application Data\<AppAuthor>\<AppName>\Cache
+            Vista:      C:\Users\<username>\AppData\Local\<AppAuthor>\<AppName>\Cache
+        On Windows the only suggestion in the MSDN docs is that local settings go in
+        the `CSIDL_LOCAL_APPDATA` directory. This is identical to the non-roaming
+        app data dir (the default returned by `user_data_dir` above). Apps typically
+        put cache data somewhere *under* the given dir here. Some examples:
+            ...\Mozilla\Firefox\Profiles\<ProfileName>\Cache
+            ...\Acme\SuperApp\Cache\1.0
+        """
+        system = CA_DMV.get_system()
+        if system == "win32":
+            path = os.path.normpath(_get_win_folder("CSIDL_LOCAL_APPDATA"))
+            path = os.path.join(path, appname)
+            path = os.path.join(path, "Cache")
+        elif system == "darwin":
+            path = os.path.expanduser("~/Library/Caches")
+            path = os.path.join(path, appname)
+        else: # linux
+            path = os.getenv("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))
+            path = os.path.join(path, appname)
+        return path
+
+    # adapted from https://github.com/ActiveState/appdirs
+    def get_system():
+        if sys.platform.startswith("java"):
+            os_name = platform.java_ver()[3][0]
+            if os_name.startswith("Windows"): # "Windows XP", "Windows 7", etc.
+                return "win32"
+            elif os_name.startswith("Mac"): # "Mac OS X", etc.
+                return "darwin"
+            else: # "Linux", "SunOS", "FreeBSD", etc.
+                # Setting this to "linux2" is not ideal, but only Windows or Mac
+                # are actually checked for and the rest of the module expects
+                # *sys.platform* style strings.
+                return "linux2"
+        else:
+            return sys.platform
