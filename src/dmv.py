@@ -3,6 +3,7 @@ import logging
 import os
 import os.path
 import platform
+import re
 import requests
 import sys
 
@@ -61,10 +62,26 @@ class CA_DMV():
             "plateChar6": "",
         }
     PLATE_CHAR_PREFIX = "plateChar"
-    MIN_LENGTH = 2
-    MAX_LENGTH = 7
+
+    UPPERCASE_INPUT = True
+    MUST_MATCH_PATTERNS = [(re.compile(pattern), reason) for pattern, reason in [
+        ("^[A-Z1-9/ ]{2,7}$", "Must contain 2 to 7 letters, numbers (1-9), and spaces (' ' or '/')."),
+        ("[A-Z1-9].*[A-Z1-9]", "Must contain at least 2 non-space characters."),
+    ]]
+    MUST_FAIL_PATTERNS = [(re.compile(pattern), reason) for pattern, reason in [
+        ("//", "Two half-spaces cannot be in a row."),
+    ]]
+    NORMALIZE_PATTERNS = [(re.compile(pattern), repl) for pattern, repl in [
+        ("[ /]", ""), # Spaces aren't considered for whether or not something is taken.
+    ]]
+
     SUCCESS_PHRASE = "id=\"PersonalizedFormBean\""
     FAILURE_PHRASE = "id=\"plate-configurator\""
+
+    ERROR_TAKEN = "The license plate number you have selected is no longer available."
+    ERROR_INVALID = "Your license plate request contains invalid characters"
+    ERROR_SHORT = "Your license plate must have at least 2 characters."
+    ERROR_HALFSPACES = "Your license plate number cannot contain 2 half spaces (/) in a row."
 
     APPNAME = "vanity"
     CACHE_FILE = "ca_dmv.json"
@@ -84,15 +101,18 @@ class CA_DMV():
 
     def check_plate(self, word):
         logger.debug("Checking word: '%s'", word)
-        cached = self.cache_read(word)
-        if cached is not None:
-            logger.debug("Found result in cache: ('%s': %s)", word, cached)
-            return cached
-        self.check_session_initialized()
-        data = CA_DMV.build_plate_request_data(word)
-        if not data:
+        normalized = CA_DMV.normalize_word(word)
+        if normalized is None:
             logger.error("Invalid input, can't check the DMV.")
             return False
+        if normalized != word:
+            logger.debug("Normalized word to: '%s'", normalized)
+        cached = self.cache_read(normalized)
+        if cached is not None:
+            logger.debug("Found result in cache: ('%s': %s)", normalized, cached)
+            return cached
+        self.check_session_initialized()
+        data = CA_DMV.build_plate_request_data(normalized)
         result = self.session.post(
             url = CA_DMV.dmv_url(CA_DMV.PATH_PLATE),
             data = data,
@@ -101,8 +121,8 @@ class CA_DMV():
         if available is None:
             logger.error("Got an unknown result for a plate, neither success nor failure!")
             return False
-        logger.debug("Got result from API: ('%s': %s)", word, available)
-        self.cache_write(word, available)
+        logger.debug("Got result from API: ('%s': %s)", normalized, available)
+        self.cache_write(normalized, available)
         self.commit_cache()
         return available
 
@@ -175,9 +195,27 @@ class CA_DMV():
         )
         return session
 
-    def build_plate_request_data(word):
-        if len(word) < CA_DMV.MIN_LENGTH or len(word) > CA_DMV.MAX_LENGTH:
+    def normalize_word(word):
+        input_word = word.upper() if CA_DMV.UPPERCASE_INPUT else word
+        if not CA_DMV.validate_word(input_word):
             return None
+        normalized = input_word
+        for pattern, repl in CA_DMV.NORMALIZE_PATTERNS:
+            normalized = pattern.sub(repl, normalized)
+        return normalized
+
+    def validate_word(word):
+        for pattern, reason in CA_DMV.MUST_MATCH_PATTERNS:
+            if not pattern.search(word):
+                logger.error("Input validation failure: %s", reason)
+                return False
+        for pattern, reason in CA_DMV.MUST_FAIL_PATTERNS:
+            if pattern.search(word):
+                logger.error("Input validation failure: %s", reason)
+                return False
+        return True
+
+    def build_plate_request_data(word):
         data = CA_DMV.PLATE_DATA.copy()
         for idx, char in enumerate(word):
             param = "{}{}".format(CA_DMV.PLATE_CHAR_PREFIX, idx)
@@ -186,10 +224,32 @@ class CA_DMV():
 
     def check_plate_response(response):
         if CA_DMV.SUCCESS_PHRASE in response.text:
+            logger.info("Success in DMV response!")
             return True
         elif CA_DMV.FAILURE_PHRASE in response.text:
-            return False
+            known_error = False
+            if CA_DMV.ERROR_TAKEN in response.text:
+                logger.info("Found error in DMV response: already taken")
+                known_error = True
+            # the following errors shouldn't happen, we check for them
+            if CA_DMV.ERROR_SHORT in response.text:
+                logger.warn("Found error in DMV response: too short")
+                known_error = True
+            if CA_DMV.ERROR_INVALID in response.text:
+                logger.warn("Found error in DMV response: invalid characters")
+                known_error = True
+            if CA_DMV.ERROR_HALFSPACES in response.text:
+                logger.warn("Found error in DMV response: two '/' in a row")
+                known_error = True
+            # only count this as an invalid plate if we actually understand
+            # what went wrong
+            if known_error:
+                return False
+            else:
+                logger.error("Found unknown error in DMV response!")
+                return None
         else:
+            logger.error("Unable to parse DMV response!")
             return None
 
     # adapted from https://github.com/ActiveState/appdirs
