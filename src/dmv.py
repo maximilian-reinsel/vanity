@@ -2,10 +2,8 @@ import json
 import logging
 import os
 import os.path
-import platform
 import re
 import requests
-import sys
 
 from enum import Enum
 from pathlib import Path
