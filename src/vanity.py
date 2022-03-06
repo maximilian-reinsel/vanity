@@ -30,9 +30,23 @@ FORMAT = '[%(name)s][%(levelname).1s] %(message)s'
 logging.basicConfig(format=FORMAT, level=args.loglevel)
 logger.info("Logging with level: %s", logging.getLevelName(args.loglevel))
 
+import time
+class Timer(object):
+    def __init__(self, name):
+        self.name = name
+    def __enter__(self):
+        self.start_time = time.time()
+    def __exit__(self, type, value, traceback):
+        end_time = time.time()
+        duration = end_time - self.start_time
+        logger.debug("Timer [%s] completed after [%s]", self.name, duration)
+
 if (args.dmv_test):
     print("Is \"{}\" available as a CA DMV license plate?...".format(args.input))
     dmv = CA_DMV(args.cache)
-    print(dmv.check_plate(args.input))
+    with Timer("all"):
+        for index in range(1, 5): # @nocommit
+            with Timer("run {}".format(index)):
+                print(dmv.check_plate(args.input))
 else:
     license_explorer.explore(args.input, args.distance, args.output_width, args.max_length)

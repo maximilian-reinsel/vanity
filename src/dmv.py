@@ -7,8 +7,10 @@ import requests
 
 from enum import Enum
 from pathlib import Path
+from threading import RLock
 
 from appdirs import user_cache_dir
+from pyrate_limiter import Limiter, RequestRate, Duration
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,18 @@ class CacheOption(Enum):
         except KeyError:
             raise ValueError()
 
+import time
+class Timer(object):
+    def __init__(self, name):
+        self.name = name
+    def __enter__(self):
+        self.start_time = time.time()
+    def __exit__(self, type, value, traceback):
+        end_time = time.time()
+        duration = end_time - self.start_time
+        logger.debug("Timer [%s] completed after [%s]", self.name, duration)
+
+limiter = Limiter(RequestRate(1, Duration.SECOND))
 class CA_DMV():
     API_ROOT = "https://www.dmv.ca.gov/wasapp/ipp2"
     PATH_INIT = "initPers.do"
@@ -82,18 +96,22 @@ class CA_DMV():
     ERROR_INVALID = "Your license plate request contains invalid characters"
     ERROR_SHORT = "Your license plate must have at least 2 characters."
     ERROR_HALFSPACES = "Your license plate number cannot contain 2 half spaces (/) in a row."
+    ERROR_REJECTED = "Request Rejected"
 
     APPNAME = "vanity"
     CACHE_FILE = "ca_dmv.json"
 
     def __init__(self, cache_option = CacheOption.DEFAULT):
         self.session = None
+        self.session_lock = RLock()
         self.cache = None
         self.cache_option = cache_option
+        self.cache_lock = RLock()
         if self.cache_option == CacheOption.SKIP_MEM_CACHE:
             logger.debug("Not initializing cache due to option %s", self.cache_option)
         if self.cache_option == CacheOption.CLEAR_DISK_CACHE:
             self.clear_cache()
+        self.limiter = Limiter(RequestRate(1, Duration.SECOND))
 
     def initialize(self):
         self.check_cache_initialized(force = True)
@@ -111,42 +129,52 @@ class CA_DMV():
         if cached is not None:
             logger.debug("Found result in cache: ('%s': %s)", normalized, cached)
             return cached
-        self.check_session_initialized()
         data = CA_DMV.build_plate_request_data(normalized)
-        result = self.session.post(
-            url = CA_DMV.dmv_url(CA_DMV.PATH_PLATE),
-            data = data,
-        )
+        self.check_session_initialized()
+        with self.session_lock:
+            with Timer("session"):
+                result = self.get_session().post(
+                    url = CA_DMV.dmv_url(CA_DMV.PATH_PLATE),
+                    data = data,
+                )
         available = CA_DMV.check_plate_response(result)
         if available is None:
             logger.error("Got an unknown result for a plate, neither success nor failure!")
             return False
         logger.debug("Got result from API: ('%s': %s)", normalized, available)
-        self.cache_write(normalized, available)
-        self.commit_cache()
+        with self.cache_lock:
+            self.cache_write(normalized, available)
+            self.commit_cache()
         return available
 
     def check_session_initialized(self, force = False):
         if self.session is None or force:
-            logger.debug("Initializing DMV request session")
-            self.session = CA_DMV.init_dmv_session()
+            with self.session_lock:
+                # repeat check in case the situation changed
+                if self.session is None or force:
+                    logger.debug("Initializing DMV request session")
+                    self.session = requests.Session()
+                    self.init_dmv_session()
 
     def check_cache_initialized(self, force = False):
         if self.cache_option == CacheOption.SKIP_MEM_CACHE:
             return False
         if self.cache is None or force:
-            if self.cache_option == CacheOption.SKIP_DISK_CACHE:
-                logger.debug("Not loading cache due to option %s", self.cache_option)
-                self.cache = {}
-            else:
-                logger.debug("Loading cache from %s", CA_DMV.get_cache_path())
-                try:
-                    with open(CA_DMV.get_cache_path()) as cache_file:
-                        self.cache = json.load(cache_file)
-                        logger.debug("Successfully loaded %d entries from the cache", len(self.cache))
-                except (FileNotFoundError, PermissionError, json.JSONDecodeError) as ex:
-                    logger.debug("Failed to read cache from disk due to: %s", ex)
-                    self.cache = {}
+            with self.cache_lock:
+                # repeat check in case the situation changed
+                if self.cache is None or force:
+                    if self.cache_option == CacheOption.SKIP_DISK_CACHE:
+                        logger.debug("Not loading cache due to option %s", self.cache_option)
+                        self.cache = {}
+                    else:
+                        logger.debug("Loading cache from %s", CA_DMV.get_cache_path())
+                        try:
+                            with open(CA_DMV.get_cache_path()) as cache_file:
+                                self.cache = json.load(cache_file)
+                                logger.debug("Successfully loaded %d entries from the cache", len(self.cache))
+                        except (FileNotFoundError, PermissionError, json.JSONDecodeError) as ex:
+                            logger.debug("Failed to read cache from disk due to: %s", ex)
+                            self.cache = {}
         return True
 
     def cache_read(self, word):
@@ -157,23 +185,43 @@ class CA_DMV():
 
     def cache_write(self, word, value):
         if self.check_cache_initialized():
-            self.cache[word] = value
+            with self.cache_lock:
+                self.cache[word] = value
 
     def commit_cache(self):
         if self.check_cache_initialized() and self.cache_option != CacheOption.SKIP_DISK_CACHE:
-            logger.debug("Saving %d cache entries to %s", len(self.cache), CA_DMV.get_cache_path())
-            cache_dir = Path(CA_DMV.get_cache_path()).parent
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            with open(CA_DMV.get_cache_path(), "w") as cache_file:
-                json.dump(self.cache, cache_file)
+            with self.cache_lock:
+                logger.debug("Saving %d cache entries to %s", len(self.cache), CA_DMV.get_cache_path())
+                cache_dir = Path(CA_DMV.get_cache_path()).parent
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                with open(CA_DMV.get_cache_path(), "w") as cache_file:
+                    json.dump(self.cache, cache_file)
 
     def clear_cache(self):
-        logger.debug("Clearing cache from %s", CA_DMV.get_cache_path())
-        try:
-            os.remove(CA_DMV.get_cache_path())
-            logger.debug("Successfully cleared cache")
-        except FileNotFoundError:
-            logger.debug("Could not clear disk cache - does not exist")
+        with self.cache_lock:
+            logger.debug("Clearing cache from %s", CA_DMV.get_cache_path())
+            try:
+                os.remove(CA_DMV.get_cache_path())
+                logger.debug("Successfully cleared cache")
+            except FileNotFoundError:
+                logger.debug("Could not clear disk cache - does not exist")
+
+    def init_dmv_session(self):
+        self.get_session().get(
+            url = CA_DMV.dmv_url(CA_DMV.PATH_INIT),
+        )
+        self.get_session().post(
+            url = CA_DMV.dmv_url(CA_DMV.PATH_START),
+            data = CA_DMV.PROCESS_DATA,
+        )
+        self.get_session().post(
+            url = CA_DMV.dmv_url(CA_DMV.PATH_PROCESS),
+            data = CA_DMV.START_DATA,
+        )
+
+    @limiter.ratelimit("session", delay=True)
+    def get_session(self):
+        return self.session
 
     def get_cache_path():
         cache_dir = user_cache_dir(CA_DMV.APPNAME)
@@ -181,19 +229,6 @@ class CA_DMV():
 
     def dmv_url(page):
         return "{}/{}".format(CA_DMV.API_ROOT, page)
-
-    def init_dmv_session():
-        session = requests.Session()
-        session.get(url = CA_DMV.dmv_url(CA_DMV.PATH_INIT))
-        session.post(
-            url = CA_DMV.dmv_url(CA_DMV.PATH_START),
-            data = CA_DMV.PROCESS_DATA,
-        )
-        session.post(
-            url = CA_DMV.dmv_url(CA_DMV.PATH_PROCESS),
-            data = CA_DMV.START_DATA,
-        )
-        return session
 
     def normalize_word(word):
         input_word = word.upper() if CA_DMV.UPPERCASE_INPUT else word
@@ -223,6 +258,8 @@ class CA_DMV():
         return data
 
     def check_plate_response(response):
+        print(response.status_code)
+        print(response.text) # @nocommit
         if CA_DMV.SUCCESS_PHRASE in response.text:
             logger.info("Success in DMV response!")
             return True
@@ -241,6 +278,9 @@ class CA_DMV():
             if CA_DMV.ERROR_HALFSPACES in response.text:
                 logger.warn("Found error in DMV response: two '/' in a row")
                 known_error = True
+            # TODO
+            if CA_DMV.ERROR_REJECTED in response.text:
+                logger.warn("Request was rejected, probably due to rate limiting")
             # only count this as an invalid plate if we actually understand
             # what went wrong
             if known_error:
