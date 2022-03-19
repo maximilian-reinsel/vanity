@@ -16,7 +16,7 @@
 Install conda (through [anaconda](https://docs.anaconda.com/anaconda/install/) or [miniconda](https://docs.conda.io/en/latest/miniconda.html)), then run:
 
 ```sh
-conda env create -f conda.yaml
+conda env update -f conda.yaml --prune
 conda activate vanity
 ```
 
