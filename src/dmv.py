@@ -207,11 +207,11 @@ class CA_DMV():
     def validate_word(word):
         for pattern, reason in CA_DMV.MUST_MATCH_PATTERNS:
             if not pattern.search(word):
-                logger.error("Input validation failure: %s", reason)
+                logger.error("Input validation failure for '%s': %s", word, reason)
                 return False
         for pattern, reason in CA_DMV.MUST_FAIL_PATTERNS:
             if pattern.search(word):
-                logger.error("Input validation failure: %s", reason)
+                logger.error("Input validation failure: '%s', %s", word, reason)
                 return False
         return True
 

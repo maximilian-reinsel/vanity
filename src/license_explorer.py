@@ -10,7 +10,7 @@ from transformations import change_letters
 from transformations import remove_start_or_end
 
 transformation_functions = {
-    transform_letters_to_numbers: 1, 
+    transform_letters_to_numbers: 1,
     transform_substrings_to_numbers: 1,
     remove_middle_vowels: 1,
     find_synonyms: 1,
@@ -19,7 +19,7 @@ transformation_functions = {
     remove_start_or_end: 10,
 }
 
-def explore(input_word, max_distance, output_width, max_length):
+def explore(input_word, max_distance, output_width, max_length, dmv, use_emoji):
     word = input_word.strip().upper()
     distance_traveled = 0
     word_set = set()
@@ -27,7 +27,7 @@ def explore(input_word, max_distance, output_width, max_length):
 
     all_options_processed = False
     while distance_traveled <= max_distance and not all_options_processed:
-        print_options_at_distance(distance_traveled, word_set, output_width, max_length)
+        print_options_at_distance(distance_traveled, word_set, output_width, max_length, dmv, use_emoji)
         new_words = []
         all_options_processed = True
         for existing_option in word_set:
