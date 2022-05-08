@@ -219,7 +219,7 @@ class CA_DMV():
             data = CA_DMV.START_DATA,
         )
 
-    @limiter.ratelimit("session", delay=True)
+    # @limiter.ratelimit("session", delay=True)
     def get_session(self):
         return self.session
 
@@ -259,7 +259,7 @@ class CA_DMV():
 
     def check_plate_response(response):
         print(response.status_code)
-        print(response.text) # @nocommit
+        # print(response.text) # @nocommit
         if CA_DMV.SUCCESS_PHRASE in response.text:
             logger.info("Success in DMV response!")
             return True
@@ -278,9 +278,6 @@ class CA_DMV():
             if CA_DMV.ERROR_HALFSPACES in response.text:
                 logger.warn("Found error in DMV response: two '/' in a row")
                 known_error = True
-            # TODO
-            if CA_DMV.ERROR_REJECTED in response.text:
-                logger.warn("Request was rejected, probably due to rate limiting")
             # only count this as an invalid plate if we actually understand
             # what went wrong
             if known_error:
@@ -288,6 +285,9 @@ class CA_DMV():
             else:
                 logger.error("Found unknown error in DMV response!")
                 return None
+        elif CA_DMV.ERROR_REJECTED in response.text:
+            logger.warn("Request was rejected, probably due to rate limiting")
+            return None
         else:
             logger.error("Unable to parse DMV response!")
             return None

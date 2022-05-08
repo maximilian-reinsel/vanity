@@ -45,7 +45,7 @@ if (args.dmv_test):
     print("Is \"{}\" available as a CA DMV license plate?...".format(args.input))
     dmv = CA_DMV(args.cache)
     with Timer("all"):
-        for index in range(1, 5): # @nocommit
+        for index in range(1, 1000): # @nocommit
             with Timer("run {}".format(index)):
                 print(dmv.check_plate(args.input))
 else:
