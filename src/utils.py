@@ -1,9 +1,17 @@
 from dataclasses import dataclass
 
-EMOJI_YES = "✅"
-EMOJI_NO = "🚫"
-ASCII_YES = "*"
-ASCII_NO = "_"
+SYMBOLS = {
+    False: {
+        None: "?",
+        False: "_",
+        True: "*",
+    },
+    True: {
+        None: "❔",
+        False: "🚫",
+        True: "✅",
+    },
+}
 
 def print_options_at_distance(d, words, width, max_length, dmv, use_emoji):
     print(f"DISTANCE {d}")
@@ -18,9 +26,8 @@ def print_grouped(words, width):
         print("\t", "".join("{:<11}".format(w) for w in g))
 
 def with_result(word, result, use_emoji):
-    yes_symbol = EMOJI_YES if use_emoji else ASCII_YES
-    no_symbol = EMOJI_NO if use_emoji else ASCII_NO
-    return word + " " + (yes_symbol if result else no_symbol)
+    symbol = SYMBOLS[use_emoji][result]
+    return word + " " + symbol
 
 @dataclass
 class Option:

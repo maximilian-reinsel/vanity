@@ -120,7 +120,7 @@ class CA_DMV():
         available = CA_DMV.check_plate_response(result)
         if available is None:
             logger.error("Got an unknown result for a plate, neither success nor failure!")
-            return False
+            return None
         logger.debug("Got result from API: ('%s': %s)", normalized, available)
         self.cache_write(normalized, available)
         self.commit_cache()
