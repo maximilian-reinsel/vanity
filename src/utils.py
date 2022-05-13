@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import List, Any, Iterable, TypeVar, Callable
 from collections import defaultdict
@@ -15,6 +17,10 @@ SYMBOLS = {
     },
 }
 
+@dataclass
+class Transform:
+    cost: int
+
 @dataclass(order=True, frozen=True)
 class PrioritizedItem:
     priority: int
@@ -27,6 +33,9 @@ class Option:
 
     def to_priority(self) -> PrioritizedItem:
         return PrioritizedItem(priority = self.distance, item = self)
+
+    def jump(self, new_word: str, transform: Transform) -> Option:
+        return Option(word = new_word, distance = self.distance + transform.cost)
 
 def print_options(options: List[Option], width: int, max_length: int, dmv, use_emoji: bool):
     grouped = group_by(options, lambda x: x.distance, lambda x: x.word)

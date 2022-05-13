@@ -1,33 +1,9 @@
-from utils import Option, PrioritizedItem
+from utils import Option
 from utils import print_options
 from queue import PriorityQueue
 from typing import List
 
-from transformations import transform_letters_to_numbers
-from transformations import transform_substrings_to_numbers
-from transformations import remove_middle_vowels
-from transformations import find_synonyms
-from transformations import remove_middle_consinent
-from transformations import change_letters
-from transformations import remove_start_or_end
-
-transformation_functions = {
-    transform_letters_to_numbers: 1,
-    transform_substrings_to_numbers: 1,
-    remove_middle_vowels: 1,
-    find_synonyms: 1,
-    remove_middle_consinent: 3,
-    change_letters: 5,
-    remove_start_or_end: 10,
-}
-
-def transform(option: Option) -> List[Option]:
-    results = []
-    for f in transformation_functions.keys():
-        new_distance = option.distance + transformation_functions[f]
-        derived = f(option)
-        results.extend(Option(word=d, distance=new_distance) for d in derived)
-    return results
+from transformations import transform
 
 def search(input_word, max_distance):
     '''Just Dijkstra's algorithm'''
