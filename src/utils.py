@@ -48,7 +48,7 @@ def print_words_at_distance(d: int, words: List[str], width: int, max_length: in
     words = sorted(w for w in words if len(w) <= max_length)
     if dmv:
         words = (with_result(w, dmv.check_plate(w), use_emoji) for w in words)
-    print_grouped(words, width)
+    print_grouped(list(words), width)
 
 def print_grouped(words: List[Option], width: int):
     grouped = [words[i:i+width] for i in range(0, len(words), width)]
