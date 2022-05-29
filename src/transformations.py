@@ -3,23 +3,31 @@ from __future__ import annotations
 from dictionary_builder import get_dictionary
 from dataclasses import dataclass
 from utils import Option, Transform
-from typing import List
+from typing import List, Dict
 
 @dataclass
 class KeyedTransform(Transform):
     key: str
 
 @dataclass
-class NumberTransform(KeyedTransform):
+class ReplacementTransform(KeyedTransform):
     value: str
 
 @dataclass
-class SubstringTransform(KeyedTransform):
-    value: str
+class NumberTransform(ReplacementTransform):
+    pass
+
+@dataclass
+class LetterTransform(ReplacementTransform):
+    pass
+
+@dataclass
+class SubstringTransform(ReplacementTransform):
+    pass
 
 @dataclass
 class RemoveVowelTransform(KeyedTransform):
-    key: str
+    pass
 
 @dataclass
 class SynonymTransform(Transform):
@@ -42,11 +50,17 @@ transforms = [
     NumberTransform(1, "T", "7"),
     NumberTransform(1, "B", "8"),
     NumberTransform(1, "G", "9"),
+    LetterTransform(1, "C", "K"),
+    LetterTransform(1, "Y", "I"),
+    LetterTransform(1, "S", "Z"),
     SubstringTransform(1, "TOO", "2"),
     SubstringTransform(1, "TWO", "2"),
     SubstringTransform(1, "TO" , "2"),
     SubstringTransform(1, "FOR", "4"),
     SubstringTransform(1, "FOUR", "4"),
+    SubstringTransform(1, "TH", "D"),
+    SubstringTransform(1, "PH", "F"),
+    SubstringTransform(1, "QU", "KW"),
     RemoveVowelTransform(1, "A"),
     RemoveVowelTransform(1, "E"),
     RemoveVowelTransform(1, "I"),
@@ -55,25 +69,29 @@ transforms = [
     SynonymTransform(1),
 ]
 
-def get_keyed_transform(_class: type[KeyedTransform]):
+def get_keyed_transform(_class: type[KeyedTransform]) -> Dict[str, KeyedTransform]:
     return { x.key: x for x in transforms if isinstance(x, _class) }
 
-def get_transform(_class: type[Transform]):
+def get_transform(_class: type[Transform]) -> Transform:
     return next((x for x in transforms if isinstance(x, _class)))
 
 number_transforms = get_keyed_transform(NumberTransform)
+letter_transforms = get_keyed_transform(LetterTransform)
 substring_transforms = get_keyed_transform(SubstringTransform)
 remove_vowel_transforms = get_keyed_transform(RemoveVowelTransform)
 synonym_transform = get_transform(SynonymTransform)
 
-def transform_letters_to_numbers(option: Option) -> List[Option]:
+def transform_single_character(option: Option, transforms: Dict[str, KeyedTransform]) -> List[Option]:
     to_ret = []
     for i, c in enumerate(option.word):
-        if c in number_transforms.keys():
-            t = number_transforms[c]
+        if c in transforms.keys():
+            t = transforms[c]
             new_word = option.word[:i] + t.value + option.word[i+1:]
             to_ret.append(option.jump(new_word, t))
     return to_ret
+
+def transform_letters_to_numbers(option: Option) -> List[Option]:
+    return transform_single_character(option, number_transforms)
 
 def transform_substrings_to_numbers(option: Option) -> List[Option]:
     to_ret = []
@@ -108,7 +126,7 @@ def find_synonyms(option: Option) -> List[Option]:
     if option.word in dictionary.keys():
         for syn in dictionary[option.word].synonyms:
             to_ret.append(option.jump(syn, synonym_transform))
-    
+
     if len(option.word.split()) > 1:
         starting_phrase = option.word.split()
         for idx, sub_part in enumerate(starting_phrase):
@@ -119,14 +137,14 @@ def find_synonyms(option: Option) -> List[Option]:
                 copy_starting_phrase[idx] = syn
                 new_word = " ".join(copy_starting_phrase)
                 to_ret.append(option.jump(new_word, synonym_transform))
-                
+
     return to_ret
 
 def remove_middle_consonent(option: Option) -> List[Option]:
     return []
 
 def change_letters(option: Option) -> List[Option]:
-    return []
+    return transform_single_character(option, letter_transforms)
 
 def remove_start_or_end(option: Option) -> List[Option]:
     return []
