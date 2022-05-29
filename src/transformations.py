@@ -41,15 +41,9 @@ consonants = [
 ]
 
 transforms = [
-    NumberTransform(1, "L", "1"),
     NumberTransform(1, "I", "1"),
-    NumberTransform(1, "Z", "2"),
     NumberTransform(1, "E", "3"),
     NumberTransform(1, "A", "4"),
-    NumberTransform(1, "S", "5"),
-    NumberTransform(1, "T", "7"),
-    NumberTransform(1, "B", "8"),
-    NumberTransform(1, "G", "9"),
     LetterTransform(1, "C", "K"),
     LetterTransform(1, "Y", "I"),
     LetterTransform(1, "S", "Z"),
@@ -66,7 +60,13 @@ transforms = [
     RemoveVowelTransform(1, "I"),
     RemoveVowelTransform(1, "O"),
     RemoveVowelTransform(1, "U"),
-    SynonymTransform(1),
+    SynonymTransform(2),
+    NumberTransform(2, "Z", "2"),
+    NumberTransform(2, "T", "7"),
+    NumberTransform(2, "L", "1"),
+    NumberTransform(2, "S", "5"),
+    NumberTransform(3, "B", "8"),
+    NumberTransform(3, "G", "9"),
 ]
 
 def get_keyed_transform(_class: type[KeyedTransform]) -> Dict[str, KeyedTransform]:
